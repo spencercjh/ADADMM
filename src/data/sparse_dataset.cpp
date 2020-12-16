@@ -1,8 +1,8 @@
 #include <fstream>
 #include <sstream>
 
-#include "logging/simple_logging.h"
 #include "data/sparse_dataset.h"
+#include "logging/simple_logging.h"
 #include "other/string_util.h"
 
 SparseDataset::SparseDataset(const std::string &file_path) : file_path_(file_path), all_feature_num_(0),

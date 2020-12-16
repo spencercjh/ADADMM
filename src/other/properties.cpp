@@ -1,10 +1,10 @@
-#include <sstream>
 #include <fstream>
+#include <sstream>
 
 #include "logging/simple_logging.h"
 #include "other/properties.h"
-#include "other/type_convert.h"
 #include "other/string_util.h"
+#include "other/type_convert.h"
 
 Properties::Properties(int &argc, char **&argv) {
     // 第一个参数是程序名，因此从i=1开始循环
@@ -40,7 +40,7 @@ void Properties::ParseFromFile(const std::string &path) {
     // 新建一个map临时存放属性值
     std::map<std::string, std::string> temp;
     std::string line;
-    while (std::getline(reader, line)) { //获取行元素
+    while (std::getline(reader, line)) {//获取行元素
         // 每一行中#号后面的内容为注释，因此删去这些内容
         std::size_t pos = line.find_first_of('#');//在line里面第一次出现'#'的位置，size_t无符号整型数，取值是整型数两倍。
         if (pos != std::string::npos) {
@@ -111,5 +111,3 @@ void Properties::Print() {
     }
     LOG(INFO) << "**************************************";
 }
-
-

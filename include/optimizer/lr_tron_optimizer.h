@@ -1,8 +1,8 @@
 #ifndef UTILS_TRONOPTIMIZER_H
 #define UTILS_TRONOPTIMIZER_H
 
-#include "optimizer/optimizer.h"
 #include "data/sparse_dataset.h"
+#include "optimizer/optimizer.h"
 
 class LRTronOptimizer : public Optimizer {
 public:

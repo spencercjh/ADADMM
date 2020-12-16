@@ -1,8 +1,8 @@
 #ifndef UTILS_LBFGS_OPTIMIZER_H
 #define UTILS_LBFGS_OPTIMIZER_H
 
-#include "optimizer/optimizer.h"
 #include "optimizer/differentiable_function.h"
+#include "optimizer/optimizer.h"
 
 class LbfgsOptimizer : public Optimizer {
 public:
@@ -36,4 +36,4 @@ private:
     DifferentiableFunction *function_;
 };
 
-#endif //UTILS_LBFGS_OPTIMIZER_H
+#endif//UTILS_LBFGS_OPTIMIZER_H

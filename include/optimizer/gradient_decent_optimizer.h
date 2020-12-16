@@ -1,17 +1,17 @@
 #ifndef UTILS_GRADIENT_DECENT_OPTIMIZER_H
 #define UTILS_GRADIENT_DECENT_OPTIMIZER_H
 
-#include "optimizer/optimizer.h"
 #include "optimizer/differentiable_function.h"
+#include "optimizer/optimizer.h"
 
 class GradientDecentOptimizer : public Optimizer {
 public:
     GradientDecentOptimizer(DifferentiableFunction *function, int dimension, double min_gradient_norm = 1e-5,
                             double factor = 1e-8, int max_iterations = 3000) : function_(function),
-                                                                                dimension_(dimension),
-                                                                                max_iterations_(max_iterations),
-                                                                                min_gradient_norm_(min_gradient_norm),
-                                                                                factor_(factor) {}
+                                                                               dimension_(dimension),
+                                                                               max_iterations_(max_iterations),
+                                                                               min_gradient_norm_(min_gradient_norm),
+                                                                               factor_(factor) {}
 
     void Optimize(double *x);
 
@@ -33,4 +33,4 @@ private:
     DifferentiableFunction *function_;
 };
 
-#endif //UTILS_GRADIENT_DECENT_OPTIMIZER_H
+#endif//UTILS_GRADIENT_DECENT_OPTIMIZER_H

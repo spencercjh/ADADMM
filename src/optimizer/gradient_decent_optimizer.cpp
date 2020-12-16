@@ -1,7 +1,7 @@
-#include "optimizer/line_search.h"
-#include "math/simple_algebra.h"
-#include "logging/simple_logging.h"
 #include "optimizer/gradient_decent_optimizer.h"
+#include "logging/simple_logging.h"
+#include "math/simple_algebra.h"
+#include "optimizer/line_search.h"
 
 void GradientDecentOptimizer::Optimize(double *x) {
     double *d = new double[dimension_];
@@ -59,4 +59,3 @@ void GradientDecentOptimizer::Optimize(double *x) {
     delete[] y;
     delete[] s;
 }
-

@@ -1,8 +1,8 @@
 #ifndef UTILS_ADMM_LR_FUNCTION_H
 #define UTILS_ADMM_LR_FUNCTION_H
 
-#include "optimizer/differentiable_function.h"
 #include "data/sparse_dataset.h"
+#include "optimizer/differentiable_function.h"
 
 /* ADMM算法下LR模型的损失函数 */
 class AdmmLRFunction : public DifferentiableFunction {

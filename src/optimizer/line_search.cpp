@@ -1,6 +1,6 @@
 #include "optimizer/line_search.h"
-#include "math/simple_algebra.h"
 #include "logging/simple_logging.h"
+#include "math/simple_algebra.h"
 
 int BacktrackingLineSearch(Function *function, const double *x, const double *g, const double *d, double *new_x,
                            int dimension, double &step_size, double min_step, double max_step, double c, double r,
@@ -35,4 +35,3 @@ int BacktrackingLineSearch(Function *function, const double *x, const double *g,
     }
     return 2;
 }
-

@@ -11,4 +11,4 @@ public:
     virtual void Gradient(const double *x, double *g) = 0;
 };
 
-#endif //DIFFERENTIABLE_FUNCTION_H
+#endif//DIFFERENTIABLE_FUNCTION_H

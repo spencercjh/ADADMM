@@ -1,8 +1,8 @@
-#include "optimizer/line_search.h"
-#include "math/simple_algebra.h"
-#include "logging/simple_logging.h"
 #include "optimizer/lbfgs_optimizer.h"
+#include "logging/simple_logging.h"
+#include "math/simple_algebra.h"
 #include "optimizer/gradient_decent_optimizer.h"
+#include "optimizer/line_search.h"
 
 void LbfgsOptimizer::Optimize(double *x) {
     double *d = new double[dimension_];

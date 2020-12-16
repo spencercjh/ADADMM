@@ -22,6 +22,7 @@ public:
     const Feature *GetSample(int n);
 
     int GetLabel(int n);
+
 private:
     const std::string file_path_;
     int sample_num_;
@@ -36,4 +37,4 @@ private:
     Feature *sample_space_;
 };
 
-#endif //SPARSE_DATASET_H
+#endif//SPARSE_DATASET_H

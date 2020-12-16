@@ -6,4 +6,4 @@ public:
     virtual void Optimize(double *x) = 0;
 };
 
-#endif //OPTIMIZER_H
+#endif//OPTIMIZER_H
