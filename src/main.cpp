@@ -91,15 +91,17 @@ int main(int argc, char **argv) {
         std::vector<int> ready_worker_list;
         std::map<int, int> worker_delay;
         // worker_id - [x,y]
-        std::map<int, std::map<int, double>> worker_x_map;
-        std::map<int, std::map<int, double>> worker_y_map;
+        //std::map<int, std::map<int, double>> worker_x_map;
+        //std::map<int, std::map<int, double>> worker_y_map;
+        std::map<int, double *> ptr;
         for (int i = 0; i < worker_number; ++i) {
-            //      ptr[i] = new double[dimension * 2];
-            //      FillZero(worker_x_map[i], dimension * 2);
+            ptr[i] = new double[dimension * 2];
+            FillZero(ptr[i], dimension * 2);
             worker_delay[i] = 0;
         }
         FillZero(z, dimension);
         LOG(INFO) << "master完成初始化";
+        properties.Print();
         MPI_Barrier(MPI_COMM_WORLD);
 
         // status主要显示接收函数的各种错误状态
@@ -113,24 +115,25 @@ int main(int argc, char **argv) {
             int worker_id = status.MPI_SOURCE;
             ready_worker_list.push_back(worker_id);
             worker_delay[worker_id] = -1;
-            auto *x_and_y = new double[dimension * 2];
-            MPI_Recv(x_and_y, dimension * 2, MPI_DOUBLE, worker_id, 1, MPI_COMM_WORLD,
+            //auto *x_and_y = new double[dimension * 2];
+            MPI_Recv(ptr[worker_id], dimension * 2, MPI_DOUBLE, worker_id, 1, MPI_COMM_WORLD,
                      MPI_STATUS_IGNORE);
-            worker_x_map[worker_id] = compressedSparseVector(x_and_y, dimension);
-            worker_y_map[worker_id] =
-                    compressedSparseVector(x_and_y + dimension, dimension);
-            delete[] x_and_y;
+            //worker_x_map[worker_id] = compressedSparseVector(x_and_y, dimension);
+            //worker_y_map[worker_id] = compressedSparseVector(x_and_y + dimension, dimension);
+            //delete[] x_and_y;
             LOG(DEBUG) << "Receive message from " << worker_id << std::endl;
             if (ready_worker_list.size() >= min_barrier &&
                 CheckWorkerDelay(worker_delay, max_delay)) {
                 FillZero(rho_x_plus_y, dimension);
                 LOG(INFO) << "达到更新条件";
                 Assign(z_old, z, dimension);
-                assert(worker_x_map.size() == worker_y_map.size());
-                for (auto &it : worker_x_map) {
-                    const int current_worker_id = it.first;
-                    std::map<int, double> &x_temp = it.second;
-                    std::map<int, double> &y_temp = worker_y_map[current_worker_id];
+                //assert(worker_x_map.size() == worker_y_map.size());
+                for (auto &it : ptr) {
+                    //const int current_worker_id = it.first;
+                    //std::map<int, double> &x_temp = it.second;
+                    //std::map<int, double> &y_temp = worker_y_map[current_worker_id];
+                    double *x_temp = it.second;
+                    double *y_temp = it.second + dimension;
                     for (int j = 0; j < dimension; ++j) {
                         rho_x_plus_y[j] += (rho * x_temp[j] + y_temp[j]);
                     }
@@ -147,11 +150,13 @@ int main(int argc, char **argv) {
                 double nystack = 0;
                 double prires = 0;
                 /* 计算并累加||x_i||_2^2), ||y_i||_2^2), ||r_i||_2^2) */
-                assert(worker_x_map.size() == worker_y_map.size());
-                for (auto &it : worker_x_map) {
-                    const int current_worker_id = it.first;
-                    std::map<int, double> &x_temp = it.second;
-                    std::map<int, double> &y_temp = worker_y_map[current_worker_id];
+                //assert(worker_x_map.size() == worker_y_map.size());
+                for (auto &it : ptr) {
+                    //const int current_worker_id = it.first;
+                    //std::map<int, double> &x_temp = it.second;
+                    //std::map<int, double> &y_temp = worker_y_map[current_worker_id];
+                    double *x_temp = it.second;
+                    double *y_temp = it.second + dimension;
                     for (int j = 0; j < dimension; ++j) {
                         nxstack += x_temp[j] * x_temp[j];
                         nystack += y_temp[j] * y_temp[j];
@@ -187,13 +192,6 @@ int main(int argc, char **argv) {
                 printf("%3d %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f\n", k,
                        prires, eps_pri, dualres, eps_dual, temp_ov, temp_ac, wait_time);
                 bool can_stop = (prires <= eps_pri && dualres <= eps_dual);
-                // can_stop = std::abs(temp_ov - objective_value) < 1e-2 || temp_ov <
-                // objective_value
-                //           || std::abs(temp_ac - accuracy) < 1e-3 || temp_ac >
-                //           accuracy;
-                // if (min_barrier == worker_num) {
-                //    can_stop = prires <= eps_pri && dualres <= eps_dual;
-                //}
                 if (can_stop || k >= max_iterations) {
                     for (int &it : ready_worker_list) {
                         MPI_Send(NULL, 0, MPI_INT, it, 3, MPI_COMM_WORLD);
@@ -202,14 +200,12 @@ int main(int argc, char **argv) {
                     while (count < worker_number) {
                         MPI_Probe(MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
                         worker_id = status.MPI_SOURCE;
-                        auto *x_and_y = new double[dimension * 2];
-                        MPI_Recv(x_and_y, dimension * 2, MPI_DOUBLE, worker_id, 1,
+                        //auto *x_and_y = new double[dimension * 2];
+                        MPI_Recv(ptr[worker_id], dimension * 2, MPI_DOUBLE, worker_id, 1,
                                  MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-                        worker_x_map[worker_id] =
-                                compressedSparseVector(x_and_y, dimension);
-                        worker_y_map[worker_id] =
-                                compressedSparseVector(x_and_y + dimension, dimension);
-                        delete[] x_and_y;
+                        //worker_x_map[worker_id] = compressedSparseVector(x_and_y, dimension);
+                        //worker_y_map[worker_id] = compressedSparseVector(x_and_y + dimension, dimension);
+                        //delete[] x_and_y;
                         MPI_Send(NULL, 0, MPI_INT, worker_id, 3, MPI_COMM_WORLD);
                         ++count;
                     }
