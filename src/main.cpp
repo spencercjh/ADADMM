@@ -14,14 +14,14 @@
 std::map<int, double> compressedSparseVector(const double *vector,
                                              const int dimension) {
     timeval start_time{}, end_time{};
-    gettimeofday(&start_time, NULL);
+    gettimeofday(&start_time, nullptr);
     std::map<int, double> index_value_map;
     for (int i = 0; i < dimension; i++) {
         if (vector[i] != 0) {
             index_value_map[i] = vector[i];
         }
     }
-    gettimeofday(&end_time, NULL);
+    gettimeofday(&end_time, nullptr);
     LOG(DEBUG) << "array to index map cost: " << (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec) / 1000000.0 << std::endl;
     return index_value_map;
 }
@@ -62,7 +62,7 @@ bool CheckWorkerDelay(std::map<int, int> &worker_delay, int max_delay) {
 
 int main(int argc, char **argv) {
     int id, worker_number;
-    MPI_Init(NULL, NULL);
+    MPI_Init(nullptr, nullptr);
     MPI_Comm_rank(MPI_COMM_WORLD, &id);
     MPI_Comm_size(MPI_COMM_WORLD, &worker_number);
     Properties properties(argc, argv);
@@ -83,8 +83,6 @@ int main(int argc, char **argv) {
         double l2reg = properties.GetDouble("l2reg");
         double ABSTOL = properties.GetDouble("ABSTOL");
         double RELTOL = properties.GetDouble("RELTOL");
-        double objective_value = properties.GetDouble("objective_value");
-        double accuracy = properties.GetDouble("accuracy");
         auto *z = new double[dimension];
         auto *z_old = new double[dimension];
         auto *rho_x_plus_y = new double[dimension];
@@ -94,11 +92,9 @@ int main(int argc, char **argv) {
         std::map<int, std::map<int, double>> worker_x_map;
         std::map<int, std::map<int, double>> worker_y_map;
         for (int i = 0; i < worker_number; ++i) {
-            //      ptr[i] = new double[dimension * 2];
-            //      FillZero(worker_x_map[i], dimension * 2);
             worker_delay[i] = 0;
         }
-        FillZero(z, dimension);
+        properties.Print();
         LOG(INFO) << "master完成初始化";
         MPI_Barrier(MPI_COMM_WORLD);
 
@@ -106,11 +102,12 @@ int main(int argc, char **argv) {
         MPI_Status status;
         //初始化两个结构体
         timeval start_time{}, end_time{};
-        gettimeofday(&start_time, NULL);
+        gettimeofday(&start_time, nullptr);
         while (true) {
             // MPI_Probe()函数探测接收消息的内容，但不影响实际接收到的消息
             MPI_Probe(MPI_ANY_SOURCE, 1, MPI_COMM_WORLD, &status);
             int worker_id = status.MPI_SOURCE;
+            LOG(DEBUG) << "Master receive message from: " << worker_id << std::endl;
             ready_worker_list.push_back(worker_id);
             worker_delay[worker_id] = -1;
             auto *x_and_y = new double[dimension * 2];
@@ -179,7 +176,7 @@ int main(int argc, char **argv) {
                         RELTOL * fmax(nxstack, sqrt(worker_number * z_norm));//原始残差
                 double eps_dual = sqrt(dimension * worker_number) * ABSTOL +
                                   RELTOL * nystack;//对偶残差
-                gettimeofday(&end_time, NULL);
+                gettimeofday(&end_time, nullptr);
                 double wait_time = (end_time.tv_sec - start_time.tv_sec) +
                                    (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
                 double temp_ov = ObjectiveValue(z, &test_data);
@@ -196,7 +193,7 @@ int main(int argc, char **argv) {
                 //}
                 if (can_stop || k >= max_iterations) {
                     for (int &it : ready_worker_list) {
-                        MPI_Send(NULL, 0, MPI_INT, it, 3, MPI_COMM_WORLD);
+                        MPI_Send(nullptr, 0, MPI_INT, it, 3, MPI_COMM_WORLD);
                     }
                     int count = ready_worker_list.size();
                     while (count < worker_number) {
@@ -210,7 +207,7 @@ int main(int argc, char **argv) {
                         worker_y_map[worker_id] =
                                 compressedSparseVector(x_and_y + dimension, dimension);
                         delete[] x_and_y;
-                        MPI_Send(NULL, 0, MPI_INT, worker_id, 3, MPI_COMM_WORLD);
+                        MPI_Send(nullptr, 0, MPI_INT, worker_id, 3, MPI_COMM_WORLD);
                         ++count;
                     }
                     break;
@@ -241,9 +238,6 @@ int main(int argc, char **argv) {
         auto *x = new double[dimension * 3];
         auto *y = x + dimension;
         auto *z = x + 2 * dimension;
-        FillZero(x, dimension);
-        FillZero(y, dimension);
-        FillZero(z, dimension);
 
         std::string train_data_path = properties.GetString("train_data_path");
         char real_path[50];
@@ -258,23 +252,23 @@ int main(int argc, char **argv) {
 
         timeval start_time{}, end_time{};
         timeval cal_start_time{}, cal_end_time{};
-        gettimeofday(&start_time, NULL);
+        gettimeofday(&start_time, nullptr);
         MPI_Status status;
         while (true) {
-            gettimeofday(&cal_start_time, NULL);
+            gettimeofday(&cal_start_time, nullptr);
             optimizer.Optimize(x);
-            gettimeofday(&cal_end_time, NULL);
+            gettimeofday(&cal_end_time, nullptr);
             cal_time += ((cal_end_time.tv_sec - cal_start_time.tv_sec) +
                          (cal_end_time.tv_usec - cal_start_time.tv_usec) / 1000000.0);
+            LOG(DEBUG) << "Worker: " << id << " send x and y to master" << std::endl;
             MPI_Send(x, 2 * dimension, MPI_DOUBLE, master, 1, MPI_COMM_WORLD);
-            LOG(DEBUG) << "Worker " << id << " send x to master" << std::endl;
             MPI_Probe(master, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
             if (status.MPI_TAG == 2) {
                 MPI_Recv(z, dimension, MPI_DOUBLE, master, 2, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
                 LOG(DEBUG) << "Worker " << id << " receive z from master" << std::endl;
             } else if (status.MPI_TAG == 3) {
-                MPI_Recv(NULL, 0, MPI_INT, master, 3, MPI_COMM_WORLD,
+                MPI_Recv(nullptr, 0, MPI_INT, master, 3, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
                 break;
             }
@@ -282,11 +276,11 @@ int main(int argc, char **argv) {
                 y[i] += rho * (x[i] - z[i]);
             }
         }
-        gettimeofday(&end_time, NULL);
+        gettimeofday(&end_time, nullptr);
         wait_time = (end_time.tv_sec - start_time.tv_sec) +
                     (end_time.tv_usec - start_time.tv_usec) / 1000000.0 - cal_time;
         double send_buf[] = {cal_time, wait_time};
-        MPI_Reduce(send_buf, NULL, 2, MPI_DOUBLE, MPI_SUM, master,
+        MPI_Reduce(send_buf, nullptr, 2, MPI_DOUBLE, MPI_SUM, master,
                    MPI_COMM_WORLD);
         delete[] x;
     }
