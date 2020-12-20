@@ -11,6 +11,11 @@
 #include "optimizer/lr_tron_optimizer.h"
 #include "other/properties.h"
 
+double calculateCost(timeval *startTime, timeval *endTime) {
+    gettimeofday(endTime, nullptr);
+    return (double) (endTime->tv_sec - startTime->tv_sec) + (double) (endTime->tv_usec - startTime->tv_usec) / 1000000.0;
+}
+
 std::map<int, double> compressedSparseVector(const double *vector,
                                              const int dimension) {
     timeval start_time{}, end_time{};
@@ -21,8 +26,7 @@ std::map<int, double> compressedSparseVector(const double *vector,
             index_value_map[i] = vector[i];
         }
     }
-    gettimeofday(&end_time, nullptr);
-    LOG(DEBUG) << "array to index map cost: " << (end_time.tv_sec - start_time.tv_sec) + (end_time.tv_usec - start_time.tv_usec) / 1000000.0 << std::endl;
+    LOG(DEBUG) << "array to index map cost: " << calculateCost(&start_time, &end_time) << std::endl;
     return index_value_map;
 }
 
@@ -124,6 +128,8 @@ int main(int argc, char **argv) {
                 LOG(INFO) << "达到更新条件";
                 Assign(z_old, z, dimension);
                 assert(worker_x_map.size() == worker_y_map.size());
+                timeval inner_start{}, inner_end{};
+                gettimeofday(&inner_start, nullptr);
                 for (auto &it : worker_x_map) {
                     const int current_worker_id = it.first;
                     std::map<int, double> &x_temp = it.second;
@@ -132,12 +138,15 @@ int main(int argc, char **argv) {
                         rho_x_plus_y[j] += (rho * x_temp[j] + y_temp[j]);
                     }
                 }
+                LOG(DEBUG) << "Master calculate rho_x_plus_y cost: " << calculateCost(&inner_start, &inner_end) << std::endl;
+                gettimeofday(&inner_start, nullptr);
                 // l2范数
                 double temp = 2 * l2reg + worker_number * rho;
                 for (int i = 0; i < dimension; ++i) {
                     //对z更新需要求解二次型问题，得到一个解析解
                     z[i] = rho_x_plus_y[i] / temp;
                 }
+                LOG(DEBUG) << "Master calculate z cost: " << calculateCost(&inner_start, &inner_end) << std::endl;
                 ++k;
                 /* 完成z更新后，判断算法是否停止 */
                 double nxstack = 0;
@@ -145,6 +154,7 @@ int main(int argc, char **argv) {
                 double prires = 0;
                 /* 计算并累加||x_i||_2^2), ||y_i||_2^2), ||r_i||_2^2) */
                 assert(worker_x_map.size() == worker_y_map.size());
+                gettimeofday(&inner_start, nullptr);
                 for (auto &it : worker_x_map) {
                     const int current_worker_id = it.first;
                     std::map<int, double> &x_temp = it.second;
@@ -156,6 +166,7 @@ int main(int argc, char **argv) {
                         prires += (x_temp[j] - z[j]) * (x_temp[j] - z[j]);
                     }
                 }
+                LOG(DEBUG) << "Master calculate nxstack&nystack&prices cost: " << calculateCost(&inner_start, &inner_end) << std::endl;
                 /* sqrt(sum ||x_i||_2^2) *///\|x_i\|_2
                 nxstack = sqrt(nxstack);
                 /* sqrt(sum ||y_i||_2^2) *///\|y_i\|_2
@@ -173,9 +184,8 @@ int main(int argc, char **argv) {
                 double dualres = rho * sqrt(worker_number * z_diff);//对偶可行性
                 double eps_pri =
                         sqrt(dimension * worker_number) * ABSTOL +
-                        RELTOL * fmax(nxstack, sqrt(worker_number * z_norm));//原始残差
-                double eps_dual = sqrt(dimension * worker_number) * ABSTOL +
-                                  RELTOL * nystack;//对偶残差
+                        RELTOL * fmax(nxstack, sqrt(worker_number * z_norm));                 //原始残差
+                double eps_dual = sqrt(dimension * worker_number) * ABSTOL + RELTOL * nystack;//对偶残差
                 gettimeofday(&end_time, nullptr);
                 double wait_time = (end_time.tv_sec - start_time.tv_sec) +
                                    (end_time.tv_usec - start_time.tv_usec) / 1000000.0;
@@ -184,13 +194,6 @@ int main(int argc, char **argv) {
                 printf("%3d %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f %10.4f\n", k,
                        prires, eps_pri, dualres, eps_dual, temp_ov, temp_ac, wait_time);
                 bool can_stop = (prires <= eps_pri && dualres <= eps_dual);
-                // can_stop = std::abs(temp_ov - objective_value) < 1e-2 || temp_ov <
-                // objective_value
-                //           || std::abs(temp_ac - accuracy) < 1e-3 || temp_ac >
-                //           accuracy;
-                // if (min_barrier == worker_num) {
-                //    can_stop = prires <= eps_pri && dualres <= eps_dual;
-                //}
                 if (can_stop || k >= max_iterations) {
                     for (int &it : ready_worker_list) {
                         MPI_Send(nullptr, 0, MPI_INT, it, 3, MPI_COMM_WORLD);
@@ -260,9 +263,9 @@ int main(int argc, char **argv) {
             gettimeofday(&cal_end_time, nullptr);
             cal_time += ((cal_end_time.tv_sec - cal_start_time.tv_sec) +
                          (cal_end_time.tv_usec - cal_start_time.tv_usec) / 1000000.0);
-            LOG(DEBUG) << "Worker: " << id << " send x and y to master" << std::endl;
             MPI_Send(x, 2 * dimension, MPI_DOUBLE, master, 1, MPI_COMM_WORLD);
             MPI_Probe(master, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+            LOG(DEBUG) << "Worker: " << id << " send x and y to master" << std::endl;
             if (status.MPI_TAG == 2) {
                 MPI_Recv(z, dimension, MPI_DOUBLE, master, 2, MPI_COMM_WORLD,
                          MPI_STATUS_IGNORE);
